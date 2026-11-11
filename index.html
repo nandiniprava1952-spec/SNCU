@@ -273,14 +273,14 @@ const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec
 function perKey(d){if(!d)return '';if(SP==='d')return d;const t=new Date(d+'T00:00:00Z');if(SP==='m')return d.slice(0,7);t.setUTCDate(t.getUTCDate()-((t.getUTCDay()+6)%7));return t.toISOString().slice(0,10)}
 function perLbl(k){if(SP==='d')return +k.slice(8)+' '+MN[+k.slice(5,7)-1];if(SP==='m')return MN[+k.slice(5,7)-1]+' '+k.slice(2,4);const a=new Date(k+'T00:00:00Z'),e=new Date(a);e.setUTCDate(e.getUTCDate()+6);const f=x=>x.getUTCDate()+' '+MN[x.getUTCMonth()];return a.getUTCMonth()===e.getUTCMonth()?a.getUTCDate()+'–'+f(e):f(a)+'–<br>'+f(e)}
 function setSP(p){SP=p;render()}
-const KP={all:r=>true,sncu:r=>true,ref:r=>r.ref,soon:r=>r.nd&&dayDiff(r.nd)<=7,wa:r=>r.wa.length>=10,swa:r=>r.swa.length>=10};
-const KL={all:'All newborns registered',sncu:'All SNCU / NBSU records',ref:'Referred out',soon:'Next visit due within 7 days',wa:'Beneficiary WhatsApp captured',swa:'Staff WhatsApp captured'};
+const KP={all:r=>true,sncu:r=>true,ref:r=>r.ref,soon:r=>r.dis&&r.nd&&dayDiff(r.nd)<=7,wa:r=>r.wa.length>=10,swa:r=>r.swa.length>=10};
+const KL={all:'All newborns registered',sncu:'All SNCU / NBSU records',ref:'Referred out',soon:'Discharged babies – next visit due within 7 days',wa:'Beneficiary WhatsApp captured',swa:'Staff WhatsApp captured'};
 function kpi(key,cls,val,label){return '<div class="card kpi '+cls+'" role="button" tabindex="0" style="cursor:pointer" title="Click to see records" onclick="setKpi(\''+key+'\')" onkeydown="if(event.key===\'Enter\')setKpi(\''+key+'\')"><b>'+val+'</b><span>'+label+' ›</span></div>'}
 function setKpi(k){KF=k;document.querySelector('.tab[data-v=rec]').click();render()}
 const ageStr=d=>{if(!d)return '—';const t=-dayDiff(d);if(t<0)return '—';const m=Math.floor(t/30.4375);return m?m+' m '+Math.round(t-m*30.4375)+' d':t+' d'};
 const waLink=n=>n.length>=10?'<a href="https://wa.me/91'+n.slice(-10)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+n.slice(-10)+'</a>':'—';
 function render(){roleUI();
-  const n=F.length,ref=F.filter(r=>r.ref).length,soon=F.filter(r=>r.nd&&dayDiff(r.nd)<=7).length,wa=F.filter(r=>r.wa.length>=10).length,swa=F.filter(r=>r.swa.length>=10).length,V=KF?F.filter(KP[KF]):F;
+  const n=F.length,ref=F.filter(r=>r.ref).length,soon=F.filter(r=>r.dis&&r.nd&&dayDiff(r.nd)<=7).length,wa=F.filter(r=>r.wa.length>=10).length,swa=F.filter(r=>r.swa.length>=10).length,V=KF?F.filter(KP[KF]):F;
   const pct=(a)=>n?Math.round(a/n*100)+'%':'0%';
   const days=count(F.map(r=>r.subDay)).sort((a,b)=>a[0]<b[0]?-1:1).slice(-10),dm=Math.max(1,...days.map(x=>x[1]));
   const dg=count(F.flatMap(r=>r.diag)).slice(0,10),dgm=Math.max(1,...dg.map(x=>x[1]));
@@ -292,7 +292,7 @@ function render(){roleUI();
   const ab=[['<8 days',0],['8–28 days',0],['>28 days',0]];
   F.forEach(r=>{if(!r.dod)return;const t=-dayDiff(r.dod);if(t<0)return;ab[t<8?0:t<=28?1:2][1]++});
   const am=Math.max(1,...ab.map(x=>x[1]));
-  $('ov').innerHTML='<div class="kpis">'+kpi('all','',n,'Newborns registered')+kpi('sncu','g',new Set(F.map(r=>r.sncu)).size,'SNCU / NBSU reporting')+kpi('ref','o',ref+' <small style="font-size:15px">('+pct(ref)+')</small>','Referred out')+kpi('soon','w',soon,'Next visit due within 7 days')+kpi('wa','',pct(wa),'Beneficiary WhatsApp captured')+kpi('swa','g',pct(swa),'Staff WhatsApp captured')+'</div>'+
+  $('ov').innerHTML='<div class="kpis">'+kpi('all','',n,'Newborns registered')+kpi('sncu','g',new Set(F.map(r=>r.sncu)).size,'SNCU / NBSU reporting')+kpi('ref','o',ref+' <small style="font-size:15px">('+pct(ref)+')</small>','Referred out')+kpi('soon','w',soon,'Discharged · next visit due within 7 days')+kpi('wa','',pct(wa),'Beneficiary WhatsApp captured')+kpi('swa','g',pct(swa),'Staff WhatsApp captured')+'</div>'+
    '<div class="grid">'+bars('Registrations by SNCU / NBSU',count(F.map(r=>r.sncu)))+bars('Registrations by district',count(F.map(r=>r.district)))+bars('Registrations by block',count(F.map(r=>r.district+' · '+r.block)))+
    pcols+'<div class="card" style="grid-column:1/-1"><h3>Newborns by age (from date of birth)</h3><div class="cols">'+ab.map(([k,v])=>'<div><span class="fv">'+v+(n?' <small>('+Math.round(v/n*100)+'%)</small>':'')+'</span><i style="height:'+v/am*110+'px"></i>'+k+'</div>').join('')+'</div></div>'+dcols+ocols+'</div>';
 
