@@ -408,7 +408,7 @@ const isFac=()=>!!((CLOUD&&CLOUD.user.role==='facility')||(LOCAL&&LOCAL.role==='
 const who=()=>isAdmin()?'admin':CLOUD?((CLOUD.user.role==='facility'||CLOUD.user.role==='block')?CLOUD.user.name:cap(CLOUD.user.district)):LOCAL.role==='facility'?LOCAL.facility:cap(LOCAL.district);
 const isAdmin=()=>!!((CLOUD&&CLOUD.user.role==='admin')||(LOCAL&&LOCAL.role==='admin'));
 const SHOW_ADMIN_TOOLS=false;   // true = show the 🔑 SNCU/NBSU logins and 🔄 Pull from Kobo buttons to admin
-const canEdit=()=>!!(CLOUD||LOCAL)&&!isFac();
+const canEdit=()=>{const r=CLOUD?CLOUD.user.role:LOCAL&&LOCAL.role;return r==='admin'||r==='district'};   // edit: state / district only
 function roleUI(){ubUpdate();$('mgb').style.display=(SHOW_ADMIN_TOOLS&&isAdmin())?'':'none';$('kbb').style.display=(SHOW_ADMIN_TOOLS&&isAdmin()&&CLOUD)?'':'none';const f=isFac();$('tabNew').style.display=canNew()?'':'none';if(f)$('tabs').style.display='flex'}
 function setLT(){
   const isB=$('lt').value==='b';$('lbl').style.display=$('lbk').style.display=isB?'':'none';
