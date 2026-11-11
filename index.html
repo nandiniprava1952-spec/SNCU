@@ -115,6 +115,15 @@ th{background:var(--tint);position:sticky;top:0}tbody tr{cursor:pointer}tbody tr
 #tabNew:not(.on){animation:nePulse 2.2s ease-in-out 3}
 @media(prefers-reduced-motion:reduce){#tabNew:not(.on){animation:none}}
 @media(max-width:700px){#tabNew{flex:1 1 100%;order:-1;margin:0 0 8px;min-height:46px;font-size:15.5px}}
+
+/* Mobile fix: stop long facility names / bars from widening the page */
+html,body{max-width:100%;overflow-x:hidden}
+.grid>*,.kpis>*,.filters>*{min-width:0}
+.bar{grid-template-columns:minmax(90px,38%) minmax(0,1fr) 34px}
+.bar span{min-width:0;overflow-wrap:anywhere}
+.bar i{max-width:100%}
+@media(max-width:700px){.grid{grid-template-columns:minmax(0,1fr)}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.kpi b{overflow-wrap:anywhere}header h1,header p{overflow-wrap:anywhere}}
+@media(max-width:700px){.cols{min-width:0!important;gap:3px}.cols div{min-width:0;font-size:9.5px;overflow-wrap:anywhere}.cols i{width:80%}}
 </style></head>
 <body>
 <header>
