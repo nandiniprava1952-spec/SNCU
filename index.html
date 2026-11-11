@@ -139,6 +139,9 @@ html,body{max-width:100%;overflow-x:hidden}
 @media(max-width:700px){.top{flex-direction:column-reverse;align-items:stretch}.ub{margin-left:0;width:100%;justify-content:space-between}.ubt{text-align:left}.ub .btn{min-height:40px}}
 .top>div:first-child{flex:1 1 380px;min-width:0}.ub{align-self:flex-start}
 @media(max-width:700px){.top>div:first-child{flex:0 0 auto}.ub{align-self:stretch}}
+.pw{position:relative}.pw input{padding-right:48px!important}
+.pwt{position:absolute;top:4px;bottom:12px;right:4px;width:42px;display:flex;align-items:center;justify-content:center;background:none;border:0;border-radius:8px;color:#8a1e55;cursor:pointer;padding:0}
+.pwt:hover{background:rgba(138,30,85,.1)}.pwt:focus-visible{outline:3px solid var(--accent);outline-offset:-2px}
 </style></head>
 <body>
 <header>
@@ -182,7 +185,7 @@ html,body{max-width:100%;overflow-x:hidden}
  <p class="note">Each district signs in with its own passcode and sees only its own newborns. SNCU / NBSU users sign in with their facility login and see only their own newborns. Admin sees all districts.</p>
  <label class="note" for="lt">Login as</label><select id="lt" onchange="setLT()"><option value="d">Admin / District</option><option value="f">SNCU / NBSU</option></select>
  <label class="note" for="ld" id="ldl">District</label><select id="ld"></select>
- <label class="note" for="lp">Password</label><input type="password" id="lp" onkeydown="if(event.key==='Enter')cloudLogin()">
+ <label class="note" for="lp">Password</label><div class="pw"><input type="password" id="lp" autocomplete="current-password" onkeydown="if(event.key==='Enter')cloudLogin()"><button type="button" class="pwt" id="pwt" aria-label="Show password" aria-pressed="false" title="Show / hide password" onclick="togglePw()"><svg id="pwi" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
  <div id="lerr"></div><button class="btn" id="lb" onclick="cloudLogin()" style="width:100%">Sign in</button>
  <p class="note" style="margin-top:12px;text-align:center"><a href="#" onclick="$('lg').classList.remove('on');$('status').textContent='Offline mode: data stays on this device and is not uploaded.';return false">Use offline (no cloud)</a></p>
  </div></div>
@@ -365,6 +368,9 @@ async function cloudPull(){
     if(all.length)show(all,'☁ '+all.length+' records from the cloud');else{ALL=[];$('status').className='';$('status').textContent='No cloud data yet. Load a Kobo export to upload it.'}
     cs('☁ synced '+new Date().toLocaleTimeString()+(kat?' · Kobo data as of '+new Date(kat).toLocaleString([],{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''),'ok')}catch(e){if(e.message!=='Session expired')cs(e.message,'err')}}
 
+function togglePw(){const i=$('lp'),show=i.type==='password';i.type=show?'text':'password';
+  $('pwt').setAttribute('aria-pressed',show);$('pwt').setAttribute('aria-label',show?'Hide password':'Show password');
+  $('pwi').innerHTML=show?'<path d="M17.94 17.94A10.07 10.07 0 0 1 12 19c-7 0-11-7-11-7a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 7 11 7a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>':'<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>';i.focus()}
 function ubUpdate(){
   const ub=$('ub');let d='',f='';
   if(CLOUD){const u=CLOUD.user;if(u.role==='admin'){d='Admin';f='All districts'}else if(u.role==='facility'){d=cap(u.district);f=u.name}else{d=cap(u.district)+' district'}}
