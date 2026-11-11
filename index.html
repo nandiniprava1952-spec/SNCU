@@ -497,7 +497,7 @@ async function saveRec(){
   else cs('✔ Edit saved on this device '+new Date().toLocaleTimeString(),'ok')}
 /* ---------- New entry (SNCU / NBSU users) ---------- */
 const NKEY='sncu_new_entries';
-const canNew=()=>!!(CLOUD||LOCAL);
+const canNew=()=>isFac();   // New Entry tab: SNCU / NBSU logins only
 const dnorm=x=>String(x||'').toLowerCase().replace(/\s+/g,'');
 function curFi(){const f=facInfo();if(f)return f;const el=$('nfac');if(!el||!el.value||!FAC[el.value])return null;const x=FAC[el.value];return{name:x.name,code:x.code||'',district:dnorm(x.district)}}
 const facInfo=()=>{
