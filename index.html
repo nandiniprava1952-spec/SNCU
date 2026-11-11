@@ -184,7 +184,8 @@ html,body{max-width:100%;overflow-x:hidden}
 <div class="lg" id="lg"><div class="card"><h3 style="font-size:18px">🍼 SNCU Tickler · Sign in</h3>
  <p class="note">Each district signs in with its own passcode and sees only its own newborns. SNCU / NBSU users sign in with their facility login and see only their own newborns. Admin sees all districts.</p>
  <label class="note" for="lt">Login as</label><select id="lt" onchange="setLT()"><option value="d">Admin / District</option><option value="f">SNCU / NBSU</option><option value="b">Block</option></select>
- <label class="note" for="ld" id="ldl">District</label><select id="ld"></select>
+ <label class="note" for="ld" id="ldl">District</label><select id="ld" onchange="blkFill()"></select>
+ <label class="note" for="lbk" id="lbl" style="display:none">Block</label><select id="lbk" style="display:none"></select>
  <label class="note" for="lp">Password</label><div class="pw"><input type="password" id="lp" autocomplete="current-password" onkeydown="if(event.key==='Enter')cloudLogin()"><button type="button" class="pwt" id="pwt" aria-label="Show password" aria-pressed="false" title="Show / hide password" onclick="togglePw()"><svg id="pwi" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
  <div id="lerr"></div><button class="btn" id="lb" onclick="cloudLogin()" style="width:100%">Sign in</button>
  <p class="note" style="margin-top:12px;text-align:center"><a href="#" onclick="$('lg').classList.remove('on');$('status').textContent='Offline mode: data stays on this device and is not uploaded.';return false">Use offline (no cloud)</a></p>
@@ -406,16 +407,20 @@ const facMatch=(r,name,code)=>{const t=fm(r.sncu_nbsu_txt),k=fm(r.SNCU_NBSU||r.s
 const isFac=()=>!!((CLOUD&&CLOUD.user.role==='facility')||(LOCAL&&LOCAL.role==='facility'));
 const who=()=>isAdmin()?'admin':CLOUD?((CLOUD.user.role==='facility'||CLOUD.user.role==='block')?CLOUD.user.name:cap(CLOUD.user.district)):LOCAL.role==='facility'?LOCAL.facility:cap(LOCAL.district);
 const isAdmin=()=>!!((CLOUD&&CLOUD.user.role==='admin')||(LOCAL&&LOCAL.role==='admin'));
+const SHOW_ADMIN_TOOLS=false;   // true = show the 🔑 SNCU/NBSU logins and 🔄 Pull from Kobo buttons to admin
 const canEdit=()=>!!(CLOUD||LOCAL)&&!isFac();
-function roleUI(){ubUpdate();$('mgb').style.display=isAdmin()?'':'none';$('kbb').style.display=(isAdmin()&&CLOUD)?'':'none';const f=isFac();$('tabNew').style.display=canNew()?'':'none';if(f)$('tabs').style.display='flex'}
+function roleUI(){ubUpdate();$('mgb').style.display=(SHOW_ADMIN_TOOLS&&isAdmin())?'':'none';$('kbb').style.display=(SHOW_ADMIN_TOOLS&&isAdmin()&&CLOUD)?'':'none';const f=isFac();$('tabNew').style.display=canNew()?'':'none';if(f)$('tabs').style.display='flex'}
 function setLT(){
-  if($('lt').value==='b'){$('ldl').textContent='Block';$('ld').innerHTML=DISTRICTS.map(d=>'<optgroup label="'+cap(d)+'">'+BLOCK_LIST.filter(x=>x[2]===d).map(x=>'<option value="'+esc(x[0])+'">'+esc(x[1])+'</option>').join('')+'</optgroup>').join('');$('lerr').textContent='';return}
+  const isB=$('lt').value==='b';$('lbl').style.display=$('lbk').style.display=isB?'':'none';
+  if(isB){$('ldl').textContent='District';$('ld').innerHTML='<option value="">Select district…</option>'+DISTRICTS.map(d=>'<option value="'+d+'">'+cap(d)+'</option>').join('');blkFill();$('lerr').textContent='';return}
   const f=$('lt').value==='f';$('ldl').textContent=f?'SNCU / NBSU':'District';
   $('ld').innerHTML=f?(Object.values(FAC).sort((a,b)=>(a.district||'').localeCompare(b.district||'')||a.name.localeCompare(b.name)).map((x,i,arr)=>(i&&(arr[i-1].district||'')===(x.district||'')?'':(i?'</optgroup>':'')+'<optgroup label="'+esc(x.district||'Other')+'">')+'<option value="'+esc(fk(x.name))+'">'+esc(x.name)+'</option>'+(i===arr.length-1?'</optgroup>':'')).join('')||'<option value="">No SNCU/NBSU logins yet – sign in as Admin first</option>')
    :'<option value="admin">Admin (all districts)</option>'+DISTRICTS.map(d=>'<option value="'+d+'">'+cap(d)+'</option>').join('');
   $('lerr').textContent=''}
+function blkFill(){if($('lt').value!=='b')return;const d=$('ld').value;
+  $('lbk').innerHTML=d?'<option value="">Select block…</option>'+BLOCK_LIST.filter(x=>x[2]===d).map(x=>'<option value="'+esc(x[0])+'">'+esc(x[1])+'</option>').join(''):'<option value="">Select district first</option>'}
 async function blkLogin(){
-  const k=$('ld').value,p=$('lp').value;if(!CLOUD_URL){$('lerr').textContent='Block logins need the cloud service.';return}
+  const k=$('lbk').value,p=$('lp').value;if(!$('ld').value){$('lerr').textContent='Select the district.';return}if(!k){$('lerr').textContent='Select the block.';return}if(!CLOUD_URL){$('lerr').textContent='Block logins need the cloud service.';return}
   if(!p){$('lerr').textContent='Enter the passcode.';return}
   $('lerr').textContent='';$('lb').disabled=true;$('lb').textContent='Signing in…';
   try{const out=await cloudCall('login',{username:k,password:p.trim()});CLOUD={token:out.token,user:out.user};
