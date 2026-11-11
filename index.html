@@ -138,6 +138,7 @@ html,body{max-width:100%;overflow-x:hidden}
   <input type="file" id="file" accept=".csv,.xlsx,.xls,.zip" hidden onchange="load(event)">
   <span id="status">No file loaded yet.</span>
   <button class="btn" id="mgb" style="display:none" onclick="mgOpen()">🔑 SNCU/NBSU logins</button>
+  <button class="btn" id="kbb" style="display:none" onclick="koboPull()" title="Fetch the latest submissions from KoboToolbox now">🔄 Pull from Kobo</button>
   <span id="cg"><b id="cu"></b><button class="btn" onclick="cloudPull()">☁ Sync now</button><button class="btn" onclick="cloudLogout()">Sign out</button><span id="cs"></span></span>
  </div>
  <div class="tabs" id="tabs" style="display:none">
@@ -347,10 +348,14 @@ function cloudLogout(reason){
   try{sessionStorage.removeItem('sncu_cloud');if(reason)sessionStorage.setItem('sncu_msg',reason)}catch(e){}
   location.reload()}
 async function cloudPull(){
-  if(!CLOUD)return;await flushNew();const all=[];let off=0;
-  try{while(off!==null&&off!==undefined){cs('Downloading… '+all.length);const o=await cloudCall('pull',{offset:off,limit:300});o.rows.forEach(r=>all.push(r));off=o.next}
+  if(!CLOUD)return;await flushNew();const all=[];let off=0,kat='';
+  try{while(off!==null&&off!==undefined){cs('Downloading… '+all.length);const o=await cloudCall('pull',{offset:off,limit:300});o.rows.forEach(r=>all.push(r));off=o.next;if(o.koboAt)kat=o.koboAt}
     if(all.length)show(all,'☁ '+all.length+' records from the cloud');else{ALL=[];$('status').className='';$('status').textContent='No cloud data yet. Load a Kobo export to upload it.'}
-    cs('☁ synced '+new Date().toLocaleTimeString(),'ok')}catch(e){if(e.message!=='Session expired')cs(e.message,'err')}}
+    cs('☁ synced '+new Date().toLocaleTimeString()+(kat?' · Kobo data as of '+new Date(kat).toLocaleString([],{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''),'ok')}catch(e){if(e.message!=='Session expired')cs(e.message,'err')}}
+async function koboPull(full){
+  if(!CLOUD)return;cs('Pulling from Kobo…');
+  try{const o=await cloudCall('kobosync',{full:!!full});await cloudPull();cs('Kobo: '+o.added+' new, '+o.updated+' updated'+(o.more?' – more waiting, press again':''),'ok')}
+  catch(x){if(x.message!=='Session expired')cs(x.message,'err')}}
 async function cloudPush(rows,name){
   const U=CLOUD.user,mine=U.role==='admin'?rows:rows.filter(r=>U.role==='facility'?facMatch(r,U.name,U.facility):r.district===U.district),skip=rows.length-mine.length;
   if(!mine.length){$('status').className='err';$('status').textContent='No '+(U.role==='facility'?U.name:cap(U.district))+' records in '+name+'. Nothing uploaded.';return}
@@ -372,7 +377,7 @@ const isFac=()=>!!((CLOUD&&CLOUD.user.role==='facility')||(LOCAL&&LOCAL.role==='
 const who=()=>isAdmin()?'admin':CLOUD?(CLOUD.user.role==='facility'?CLOUD.user.name:cap(CLOUD.user.district)):LOCAL.role==='facility'?LOCAL.facility:cap(LOCAL.district);
 const isAdmin=()=>!!((CLOUD&&CLOUD.user.role==='admin')||(LOCAL&&LOCAL.role==='admin'));
 const canEdit=()=>!!(CLOUD||LOCAL)&&!isFac();
-function roleUI(){$('mgb').style.display=isAdmin()?'':'none';const f=isFac();$('tabNew').style.display=canNew()?'':'none';if(f)$('tabs').style.display='flex'}
+function roleUI(){$('mgb').style.display=isAdmin()?'':'none';$('kbb').style.display=(isAdmin()&&CLOUD)?'':'none';const f=isFac();$('tabNew').style.display=canNew()?'':'none';if(f)$('tabs').style.display='flex'}
 function setLT(){
   const f=$('lt').value==='f';$('ldl').textContent=f?'SNCU / NBSU':'District';
   $('ld').innerHTML=f?(Object.values(FAC).sort((a,b)=>(a.district||'').localeCompare(b.district||'')||a.name.localeCompare(b.name)).map((x,i,arr)=>(i&&(arr[i-1].district||'')===(x.district||'')?'':(i?'</optgroup>':'')+'<optgroup label="'+esc(x.district||'Other')+'">')+'<option value="'+esc(fk(x.name))+'">'+esc(x.name)+'</option>'+(i===arr.length-1?'</optgroup>':'')).join('')||'<option value="">No SNCU/NBSU logins yet – sign in as Admin first</option>')
