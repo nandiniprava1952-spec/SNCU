@@ -128,18 +128,29 @@ html,body{max-width:100%;overflow-x:hidden}
 .wabtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:#25d366;color:#fff!important;font-weight:800;font-size:15px;text-decoration:none;padding:12px 20px;border-radius:12px;min-height:46px;box-shadow:0 2px 8px rgba(0,0,0,.2)}
 .wabtn:hover{background:#1ebe5a}
 @media(max-width:700px){.wabtn{display:flex;width:100%}}
+
+/* Signed-in user badge (top right) */
+.top{position:relative}
+.ub{display:flex;align-items:center;gap:10px;margin-left:auto;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.35);border-radius:12px;padding:6px 8px 6px 14px}
+.ubt{display:flex;flex-direction:column;line-height:1.25;text-align:right;min-width:0}
+.ubt b{font-size:14px;color:#fff;overflow-wrap:anywhere}.ubt span{font-size:12px;color:#ffe3f0;overflow-wrap:anywhere}.ubt span:empty{display:none}
+.ub .btn{padding:7px 14px;min-height:0;white-space:nowrap}
+#cu{display:none}
+@media(max-width:700px){.top{flex-direction:column-reverse;align-items:stretch}.ub{margin-left:0;width:100%;justify-content:space-between}.ubt{text-align:left}.ub .btn{min-height:40px}}
+.top>div:first-child{flex:1 1 380px;min-width:0}.ub{align-self:flex-start}
 </style></head>
 <body>
 <header>
  <div class="top"><div><h1>🍼 SNCU Tickler Dashboard</h1>
- <p>NHM Odisha · Newborn registrations, diagnoses, referrals and follow-up visit schedule from the KoboToolbox SNCU/NBSU tickler export. Data stays in your browser.</p></div></div>
+ <p>NHM Odisha · Newborn registrations, diagnoses, referrals and follow-up visit schedule from the KoboToolbox SNCU/NBSU tickler export. Data stays in your browser.</p></div>
+ <div id="ub" class="ub" style="display:none"><div class="ubt"><b id="ubd"></b><span id="ubf"></span></div><button class="btn" onclick="cloudLogout()">Sign out</button></div></div>
  <div class="loadbar">
   <button class="btn" onclick="$('file').click()">📦 Load CSV / XLSX / ZIP</button>
   <input type="file" id="file" accept=".csv,.xlsx,.xls,.zip" hidden onchange="load(event)">
   <span id="status">No file loaded yet.</span>
   <button class="btn" id="mgb" style="display:none" onclick="mgOpen()">🔑 SNCU/NBSU logins</button>
   <button class="btn" id="kbb" style="display:none" onclick="koboPull()" title="Fetch the latest submissions from KoboToolbox now">🔄 Pull from Kobo</button>
-  <span id="cg"><b id="cu"></b><button class="btn" onclick="cloudPull()">☁ Sync now</button><button class="btn" onclick="cloudLogout()">Sign out</button><span id="cs"></span></span>
+  <span id="cg"><b id="cu"></b><button class="btn" onclick="cloudPull()">☁ Sync now</button><span id="cs"></span></span>
  </div>
  <div class="tabs" id="tabs" style="display:none">
   <button class="tab on" data-v="ov">Overview</button><button class="tab" data-v="fu">Follow-up</button><button class="tab" data-v="rec">Records</button><button class="tab" data-v="new" id="tabNew" style="display:none" aria-label="Add a new newborn entry">➕ New Entry</button>
@@ -352,6 +363,14 @@ async function cloudPull(){
   try{while(off!==null&&off!==undefined){cs('Downloading… '+all.length);const o=await cloudCall('pull',{offset:off,limit:300});o.rows.forEach(r=>all.push(r));off=o.next;if(o.koboAt)kat=o.koboAt}
     if(all.length)show(all,'☁ '+all.length+' records from the cloud');else{ALL=[];$('status').className='';$('status').textContent='No cloud data yet. Load a Kobo export to upload it.'}
     cs('☁ synced '+new Date().toLocaleTimeString()+(kat?' · Kobo data as of '+new Date(kat).toLocaleString([],{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):''),'ok')}catch(e){if(e.message!=='Session expired')cs(e.message,'err')}}
+
+function ubUpdate(){
+  const ub=$('ub');let d='',f='';
+  if(CLOUD){const u=CLOUD.user;if(u.role==='admin'){d='Admin';f='All districts'}else if(u.role==='facility'){d=cap(u.district);f=u.name}else{d=cap(u.district)+' district'}}
+  else if(LOCAL){if(LOCAL.role==='admin'){d='Admin';f='All districts'}else if(LOCAL.role==='facility'){const x=FAC[fk(LOCAL.facility)];d=x&&x.district?cap(x.district):'';f=LOCAL.facility}else d=cap(LOCAL.district)+' district'}
+  else{ub.style.display='none';return}
+  $('ubd').textContent=d||f;$('ubf').textContent=d?f:'';ub.style.display='flex'}
+try{new MutationObserver(ubUpdate).observe($('cu'),{childList:true,characterData:true,subtree:true})}catch(e){}
 async function koboPull(full){
   if(!CLOUD)return;cs('Pulling from Kobo…');
   try{const o=await cloudCall('kobosync',{full:!!full});await cloudPull();cs('Kobo: '+o.added+' new, '+o.updated+' updated'+(o.more?' – more waiting, press again':''),'ok')}
@@ -377,7 +396,7 @@ const isFac=()=>!!((CLOUD&&CLOUD.user.role==='facility')||(LOCAL&&LOCAL.role==='
 const who=()=>isAdmin()?'admin':CLOUD?(CLOUD.user.role==='facility'?CLOUD.user.name:cap(CLOUD.user.district)):LOCAL.role==='facility'?LOCAL.facility:cap(LOCAL.district);
 const isAdmin=()=>!!((CLOUD&&CLOUD.user.role==='admin')||(LOCAL&&LOCAL.role==='admin'));
 const canEdit=()=>!!(CLOUD||LOCAL)&&!isFac();
-function roleUI(){$('mgb').style.display=isAdmin()?'':'none';$('kbb').style.display=(isAdmin()&&CLOUD)?'':'none';const f=isFac();$('tabNew').style.display=canNew()?'':'none';if(f)$('tabs').style.display='flex'}
+function roleUI(){ubUpdate();$('mgb').style.display=isAdmin()?'':'none';$('kbb').style.display=(isAdmin()&&CLOUD)?'':'none';const f=isFac();$('tabNew').style.display=canNew()?'':'none';if(f)$('tabs').style.display='flex'}
 function setLT(){
   const f=$('lt').value==='f';$('ldl').textContent=f?'SNCU / NBSU':'District';
   $('ld').innerHTML=f?(Object.values(FAC).sort((a,b)=>(a.district||'').localeCompare(b.district||'')||a.name.localeCompare(b.name)).map((x,i,arr)=>(i&&(arr[i-1].district||'')===(x.district||'')?'':(i?'</optgroup>':'')+'<optgroup label="'+esc(x.district||'Other')+'">')+'<option value="'+esc(fk(x.name))+'">'+esc(x.name)+'</option>'+(i===arr.length-1?'</optgroup>':'')).join('')||'<option value="">No SNCU/NBSU logins yet – sign in as Admin first</option>')
