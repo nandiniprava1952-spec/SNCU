@@ -128,17 +128,29 @@ body.fac:not(.onnew) #fab:active{filter:brightness(.92)}
 #lgInstallHint{font-size:12px;color:#ffd3e6;margin-top:8px;min-height:16px;text-align:center;text-shadow:0 1px 3px rgba(0,0,0,.5)}
 #lgInstallWrap[hidden]{display:none}
 </style>
+<style id="hact-style">
+header .top{align-items:flex-start;flex-wrap:nowrap}
+header .top>div:first-child{flex:1 1 0;min-width:0}
+.hact{display:flex;gap:8px;align-items:center;justify-content:flex-end;flex:none;margin-left:auto}
+.hact .btn{padding:8px 14px;min-height:0;font-size:12.5px;white-space:nowrap}
+@media(max-width:700px){
+ header .top{flex-wrap:wrap;gap:8px}
+ .hact{order:-1;width:100%}
+ .hact .btn{min-height:38px;padding:8px 12px}
+}
+</style>
 </head>
 <body>
 <header>
  <div class="top"><div><h1>🍼 SNCU Tickler Dashboard</h1>
- <p>NHM Odisha · Newborn registrations, diagnoses, referrals and follow-up visit schedule from the KoboToolbox SNCU/NBSU tickler export. Data stays in your browser.</p></div></div>
+ <p>NHM Odisha · Newborn registrations, diagnoses, referrals and follow-up visit schedule from the KoboToolbox SNCU/NBSU tickler export. Data stays in your browser.</p></div>
+ <div class="hact" id="hact"><button class="btn" id="so" onclick="cloudLogout()" style="display:none">Sign out</button></div></div>
  <div class="loadbar">
   <button class="btn" onclick="$('file').click()">📦 Load CSV / XLSX / ZIP</button>
   <input type="file" id="file" accept=".csv,.xlsx,.xls,.zip" hidden onchange="load(event)">
   <span id="status">No file loaded yet.</span>
   <button class="btn" id="mgb" style="display:none" onclick="mgOpen()">🔑 SNCU/NBSU logins</button>
-  <span id="cg"><b id="cu"></b><button class="btn" onclick="cloudPull()">☁ Sync now</button><button class="btn" onclick="cloudLogout()">Sign out</button><span id="cs"></span></span>
+  <span id="cg"><b id="cu"></b><button class="btn" onclick="cloudPull()">☁ Sync now</button><span id="cs"></span></span>
  </div>
  <div class="tabs" id="tabs" style="display:none">
   <button class="tab on" data-v="ov">Overview</button><button class="tab" data-v="fu">Follow-up</button><button class="tab" data-v="rec">Records</button><button class="tab" data-v="new" id="tabNew" style="display:none">➕ New Entry</button>
@@ -308,7 +320,7 @@ async function localLogin(){
   let h;try{h=await sha(SALT+p)}catch(e){$('lerr').textContent='Open this file in Chrome, Edge or Firefox.';return}
   if(h!==LOGIN_HASHES[d]){$('lerr').textContent='Wrong district or passcode.';return}
   LOCAL={district:d,role:d==='admin'?'admin':'district'};$('lp').value='';$('lerr').textContent='';
-  $('lg').classList.remove('on');$('cg').style.display='flex';$('cu').textContent='👤 '+(d==='admin'?'Admin · all districts':cap(d)+' district');
+  $('lg').classList.remove('on');$('cg').style.display='flex';$('so').style.display='inline-block';$('cu').textContent='👤 '+(d==='admin'?'Admin · all districts':cap(d)+' district');
   $('cg').querySelector('button').style.display='none';
   $('status').textContent='Signed in. Load the Kobo export to view '+(d==='admin'?'all districts.':cap(d)+' records.')}
 
@@ -341,7 +353,7 @@ async function cloudLogin(){
     $('lp').value='';afterLogin()}catch(e){$('lerr').textContent=e.message}
   $('lb').disabled=false;$('lb').textContent='Sign in'}
 function afterLogin(){roleUI();
-  $('lg').classList.remove('on');$('cg').style.display='flex';
+  $('lg').classList.remove('on');$('cg').style.display='flex';$('so').style.display='inline-block';
   $('cu').textContent='👤 '+(CLOUD.user.role==='admin'?'Admin · all districts':CLOUD.user.role==='facility'?CLOUD.user.name:cap(CLOUD.user.district)+' district');cloudPull()}
 function cloudLogout(reason){
   if(CLOUD&&!reason){try{fetch(CLOUD_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({action:'logout',token:CLOUD.token})})}catch(e){}}
@@ -392,7 +404,7 @@ async function facLogin(){
   let h;try{h=await sha(SALT+'fac|'+k+'|'+p)}catch(e){$('lerr').textContent='Open this file in Chrome, Edge or Firefox.';return}
   if(h!==a.hash){$('lerr').textContent='Wrong SNCU/NBSU or password.';return}
   LOCAL={role:'facility',facility:a.name,code:a.code||''};roleUI();$('lp').value='';$('lerr').textContent='';
-  $('lg').classList.remove('on');$('cg').style.display='flex';$('cu').textContent='👤 '+a.name;$('cg').querySelector('button').style.display='none';
+  $('lg').classList.remove('on');$('cg').style.display='flex';$('so').style.display='inline-block';$('cu').textContent='👤 '+a.name;$('cg').querySelector('button').style.display='none';
   $('status').className='';$('status').textContent='Signed in. Load the Kobo export to view '+a.name+' records.'}
 /* admin: manage facility logins */
 function mgOpen(){
@@ -667,7 +679,7 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{$('
   const mq=matchMedia('(max-width:700px)'),set=()=>{f.classList.toggle('fold',mq.matches&&!f.classList.contains('open'))};
   b.onclick=()=>{f.classList.toggle('open');set()};mq.addEventListener&&mq.addEventListener('change',set);set()}
  let dp=null;const ib=document.createElement('button');ib.id='inst';ib.className='btn';ib.textContent='⬇ Install app';
- document.querySelector('.loadbar').appendChild(ib);
+ document.getElementById('hact').insertBefore(ib,document.getElementById('so'));
  addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;ib.style.display='inline-block'});
  ib.onclick=async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;ib.style.display='none'};
  addEventListener('appinstalled',()=>{ib.style.display='none'});
@@ -906,5 +918,10 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{$('
     })();
   }
 })();
+</script>
+<script>
+(function(){var h=document.getElementById('hact');if(!h)return;
+ function sync(){var any=[].some.call(h.children,function(b){return b.style.display&&b.style.display!=='none'});h.style.display=any?'':'none'}
+ new MutationObserver(sync).observe(h,{attributes:true,attributeFilter:['style'],childList:true,subtree:true});sync()})();
 </script>
 </body></html>
