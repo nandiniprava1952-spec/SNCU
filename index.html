@@ -139,6 +139,25 @@ header .top>div:first-child{flex:1 1 0;min-width:0}
  .hact .btn{min-height:38px;padding:8px 12px}
 }
 </style>
+<style id="mobile-fit">
+/* stop sideways scrolling: nothing may be wider than the screen */
+html{overflow-x:hidden}
+body{max-width:100%;overflow-x:clip}
+img,svg,canvas,video{max-width:100%}
+.wrap,.card,.grid>*,.kpis>*,.tw,.cols div,.nq,.top>div{min-width:0}
+.tw{max-width:100%}
+#cg{flex-wrap:wrap;min-width:0}
+#status,#cs,#cu,.note,.kv dd,.card h3{overflow-wrap:anywhere}
+@media(max-width:700px){
+ .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .grid{grid-template-columns:minmax(0,1fr)}
+ .kv,.ef{grid-template-columns:minmax(0,1fr)}
+ .mgr{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ .filters>div{min-width:0}
+ .loadbar{min-width:0}
+ #rec td,#fu td{overflow-wrap:anywhere}
+}
+</style>
 </head>
 <body>
 <header>
