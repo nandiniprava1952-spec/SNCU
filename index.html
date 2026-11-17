@@ -170,7 +170,7 @@ img,svg,canvas,video{max-width:100%}
   <button class="btn" onclick="$('file').click()">📦 Load CSV / XLSX / ZIP</button>
   <input type="file" id="file" accept=".csv,.xlsx,.xls,.zip" hidden onchange="load(event)">
   <span id="status">No file loaded yet.</span>
-  <span id="cg"><b id="cu"></b><button class="btn" onclick="cloudPull()">☁ Sync now</button><button class="btn" id="kb" onclick="koboPull()" style="display:none">⟳ Pull from Kobo</button><span id="cs"></span></span>
+  <span id="cg"><b id="cu"></b><button class="btn" onclick="cloudPull()">☁ Sync now</button><button class="btn" id="kb" onclick="koboPull()" style="display:none">⟳ kobo pull</button><span id="cs"></span></span>
  </div>
  <div class="tabs" id="tabs" style="display:none">
   <button class="tab on" data-v="ov">Overview</button><button class="tab" data-v="fu">Follow-up</button><button class="tab" data-v="rec">Records</button><button class="tab" data-v="new" id="tabNew" style="display:none">➕ New Entry</button>
@@ -203,8 +203,6 @@ img,svg,canvas,video{max-width:100%}
  <label class="note" for="ld" id="ldl">District</label><select id="ld" onchange="fillBK()"></select><div id="lbkw" style="display:none"><label class="note" for="lbk">Block</label><select id="lbk"></select></div>
  <label class="note" for="lp">Password</label><div class="pwwrap"><input type="password" id="lp" autocomplete="current-password" onkeydown="if(event.key==='Enter')cloudLogin()"><button type="button" id="pwEye" class="pweye" aria-label="Show password" aria-pressed="false" title="Show / hide password"><svg id="pwEyeOn" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg><svg id="pwEyeOff" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20C5 20 1 12 1 12a18.5 18.5 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><path d="M14.12 14.12A3 3 0 1 1 9.88 9.88"/><line x1="1" y1="1" x2="23" y2="23"/></svg></button></div>
  <div id="lerr"></div><button class="btn" id="lb" onclick="cloudLogin()" style="width:100%">Sign in</button>
- <button class="btn" id="lkb" onclick="loginKoboPull()" style="width:100%;margin-top:8px">⟳ Pull from Kobo</button>
- <p class="note" style="margin:4px 0 0;text-align:center">State admin only: choose State (all districts), enter the admin password, then tap Pull from Kobo.</p>
  <p class="note" style="margin-top:12px;text-align:center"><a href="#" onclick="$('lg').classList.remove('on');$('status').textContent='Offline mode: data stays on this device and is not uploaded.';return false">Use offline (no cloud)</a></p>
  <div id="lgInstallWrap"><button type="button" class="btn" id="lgInstall">⬇ Install app</button><div id="lgInstallHint" role="status"></div></div>
  </div></div>
@@ -429,20 +427,6 @@ async function cloudPull(){
   try{while(off!==null&&off!==undefined){cs('Downloading… '+all.length);const o=await cloudCall('pull',{offset:off,limit:300});o.rows.forEach(r=>all.push(r));off=o.next}
     if(all.length)show(all,'☁ '+all.length+' records from the cloud');else{ALL=[];$('status').className='';$('status').textContent='No cloud data yet. Load a Kobo export to upload it.'}
     cs('☁ synced '+new Date().toLocaleTimeString(),'ok')}catch(e){if(e.message!=='Session expired')cs(e.message,'err')}}
-async function loginKoboPull(){
-  const er=$('lerr'),b=$('lkb'),p=$('lp').value;
-  if(!CLOUD_URL){er.textContent='Cloud is not set up in this app.';return}
-  if($('lt').value!=='d'||$('ld').value!=='admin'){er.textContent='Select Login as: State / District, then State (all districts).';return}
-  if(!p){er.textContent='Enter the admin password.';return}
-  er.textContent='';b.disabled=true;$('lb').disabled=true;b.textContent='Signing in…';
-  try{const out=await cloudCall('login',{username:'admin',password:p});
-    CLOUD={token:out.token,user:out.user};
-    let added=0,upd=0,more=true,n=0;
-    while(more&&n++<20){b.textContent='Pulling from Kobo… '+added+' new';const o=await cloudCall('kobosync',{full:false});added+=o.added||0;upd+=o.updated||0;more=!!o.more}
-    try{(function(k,v){try{localStorage.setItem(k,v)}catch(_){sessionStorage.setItem(k,v)}})('sncu_cloud',JSON.stringify(CLOUD))}catch(e){}
-    $('lp').value='';afterLogin();cs('✔ Kobo: '+added+' new, '+upd+' updated · '+new Date().toLocaleTimeString(),'ok')}
-  catch(e){CLOUD=null;if(e.message!=='Session expired')er.textContent=e.message}
-  b.disabled=false;$('lb').disabled=false;b.textContent='⟳ Pull from Kobo'}
 async function koboPull(full){
   if(!CLOUD||CLOUD.user.role!=='admin')return;
   const b=$('kb');b.disabled=true;
@@ -851,7 +835,7 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{$('
      The new index.html is downloaded into a staging cache; it only replaces the running copy when the user taps Update. */
   if('serviceWorker' in navigator && /^https?:/.test(location.protocol) && window.caches){
     (function(){
-      var CACHE='sncu-v15', STAGE='sncu-stage';
+      var CACHE='sncu-v16', STAGE='sncu-stage';
       var IDX=new URL('index.html',location.href).href, VER=new URL('__ver.json',location.href).href;
       var SMALL=['manifest.webmanifest','icon-192.png','icon-512.png','maskable-512.png','apple-touch-icon.png'];
       var EVERY=30*60*1000, MIN_GAP=20000;

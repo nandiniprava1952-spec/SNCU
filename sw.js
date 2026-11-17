@@ -3,7 +3,7 @@
    the page (see the "Update flow" script in index.html) checks for a new version, downloads it into
    a staging cache with a progress ring, asks the user to tap Update, then copies it into this cache
    and restarts. Requests carrying ?__chk=… always go straight to the network (used by those checks). */
-const CACHE = 'sncu-v15';                 // active app shell
+const CACHE = 'sncu-v16';                 // active app shell
 const STAGE = 'sncu-stage';              // a downloaded-but-not-yet-installed update (managed by the page)
 const VER   = './__ver.json';            // {etag, lm, size, t} of the index.html held in CACHE
 const SHELL = ['./index.html', './manifest.webmanifest',
