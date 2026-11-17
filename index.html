@@ -36,7 +36,7 @@ header .btn{background:#fff;color:var(--navy2)}
 select,input[type=text],input[type=date]{padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font-size:13px;min-width:140px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
 .kpi{border-left:5px solid var(--steel)}.kpi b{display:block;font-size:30px;line-height:1.1;font-weight:800}.kpi span{color:var(--soft);font-size:12px}
-.kpi.o{border-color:var(--accent)}.kpi.g{border-color:var(--safe)}.kpi.w{border-color:var(--warn)}
+.kpi.r{border-color:#c0392b}.kpi.o{border-color:var(--accent)}.kpi.g{border-color:var(--safe)}.kpi.w{border-color:var(--warn)}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
 h3{margin:0 0 10px;font-size:14px}
 .bar{display:grid;grid-template-columns:minmax(90px,38%) 1fr 34px;gap:8px;align-items:center;margin:5px 0;font-size:12.5px}
@@ -230,11 +230,45 @@ function mapRow(r){
   const hosp=next(['hosp1','hosp2','hosp3','hosp4','hosp5']);
   const nd=[home,hosp].filter(Boolean).sort((a,b)=>a-b)[0]||null;
   const sub=dt(r._submission_time);
-  return {raw:r,mother:up(r.Mother_Name)||'(no name)',district:cap(r.district),block:cap(blockKey.replace((r.district||'')+'_','')),
+  const refY=String(r.Referral).toLowerCase()==='yes',unitTxt=up(r.sncu_nbsu_txt)||'Not recorded',podTxt=up(r.POD??r['page1/POD']),bpv=unitTxt==='Not recorded'?'':birthPlace(podTxt,unitTxt);
+  return {raw:r,out:outcomeOf(r,refY),pod:podTxt,bp:bpv,own:bpv==='out'?ownershipOf(podTxt):'',mother:up(r.Mother_Name)||'(no name)',district:cap(r.district),block:cap(blockKey.replace((r.district||'')+'_','')),
     village:cap(r.village_other||vil),sncu:up(r.sncu_nbsu_txt)||'Not recorded',diag:diag.length?diag:(r.diag_en?[up(r.diag_en)]:[]),
     diagOth:up(r[Object.keys(r).find(k=>!k.startsWith('Diagnosis/')&&/(diag.*(oth|specif))|((oth|specif).*diag)/i.test(k)&&String(r[k]).trim()!=='')]||''),
     dod:dt(r.DOD),adm:dt(r.Admission_date),dis:dt(r.Discharge_date),ref:String(r.Referral).toLowerCase()==='yes',refTo:up(r.Referral_hospital||r.Refer_To),
     home,hosp,nd,wa:(r.beneficiary_whatsapp_number||'').replace(/\D/g,''),swa:(r.staff_whatsapp_number||'').replace(/\D/g,''),sub,subDay:sub?sub.toISOString().slice(0,10):'' };
+}
+/* outcome + inborn/outborn classification */
+const NB_ABBR=[[/d\.?\s?h\.?\s?h\b|district\s+head\s*quarters?(\s+hospital)?|dist\.?\s+hq\s+hospital/g,' dhh '],[/s\.?\s?d\.?\s?h\b|sub[\s-]*divisional(\s+hospital)?/g,' sdh '],[/c\.?\s?h\.?\s?c\b|community\s+health\s+cent(er|re)/g,' chc '],[/p\.?\s?h\.?\s?c\b|primary\s+health\s+cent(er|re)/g,' phc '],[/m\.?\s?c\.?\s?h\b|medical\s+college(\s+(and|&)\s+hospital)?/g,' mch ']];
+const NB_STOP=/\b(sncu|nbsu|snbu|unit|hospital|hosp|dist|district|the|of|and|at|in|special|newborn|care|sick)\b/g;
+const nbToks=t=>{let x=' '+String(t||'').toLowerCase()+' ';NB_ABBR.forEach(a=>{x=x.replace(a[0],a[1])});return x.replace(/[^a-z0-9\u0B00-\u0B7F ]+/g,' ').replace(NB_STOP,' ').split(/\s+/).filter(Boolean)};
+function birthPlace(pod,unit){
+  const p=String(pod||'').trim();if(!p)return '';
+  if(/\b(in[\s-]?born|same\s+(hospital|facility)|this\s+(hospital|facility)|own\s+(hospital|facility))\b/i.test(p))return 'in';
+  if(/\b(out[\s-]?born|home|domiciliary|on\s+the\s+way|en[\s-]?route|ambulance|108)\b/i.test(p))return 'out';
+  const u=nbToks(unit),a=nbToks(p);if(!u.length||!a.length)return '';
+  const sh=a.length<=u.length?a:u,lg=a.length<=u.length?u:a;
+  return sh.every(t=>lg.includes(t))?'in':'out';
+}
+const OWN_HOME=/\b(home|domiciliary|on\s+the\s+way|en[\s-]?route|ambulance|108)\b/i;
+const OWN_PVT_STRONG=/\b(private|pvt|nursing\s*home|clinic|polyclinic|charitable|ngo|corporate|multi[\s-]?speciality|super[\s-]?speciality)\b/i;
+const OWN_GOVT_STRONG=/\b(govt|gov|government)\b/i;
+const OWN_PVT_NAMES=/\b(apollo|kims|kalinga\s+hospital|sum\s+(hospital|ultimate)|hi[\s-]?tech|amri|sparsh|ils|manipal|fortis|max\s+(hospital|healthcare)|trust|mission)\b/i;
+const OWN_GOVT_ABBR=/\b(dhh|sdh|chc|phc|uphc|rhc|mch|gh|aiims|scb|mkcg|vimsar|prm|medical\s+college|district\s+(head\s*quarters?|hospital)|sub[\s-]?(divisional|centre|center)|general\s+hospital|capital\s+hospital|health\s+cent(er|re)|esi|railway)\b/i;
+function ownershipOf(pod){
+  const t=String(pod||'').trim();if(!t||OWN_HOME.test(t.replace(/nursing\s*home/ig,' ')))return '';
+  const x=t.replace(/\./g,'');
+  if(OWN_PVT_STRONG.test(x))return 'pvt';
+  if(OWN_GOVT_STRONG.test(x))return 'govt';
+  if(OWN_PVT_NAMES.test(x))return 'pvt';
+  if(OWN_GOVT_ABBR.test(x))return 'govt';
+  return '';
+}
+function outcomeOf(r,ref){
+  if(ref)return '';
+  const g=n=>String(r[n]??r['page1/'+n]??'').trim(),o=g('Outcome').toLowerCase();
+  if(o==='death'||(!o&&g('Death_date')))return 'death';
+  if(o==='discharged'||g('Discharge_date'))return 'dis';
+  return '';
 }
 function parseText(t){
   t=t.replace(/^\uFEFF/,'');
@@ -290,8 +324,10 @@ const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec
 function perKey(d){if(!d)return '';if(SP==='d')return d;const t=new Date(d+'T00:00:00Z');if(SP==='m')return d.slice(0,7);t.setUTCDate(t.getUTCDate()-((t.getUTCDay()+6)%7));return t.toISOString().slice(0,10)}
 function perLbl(k){if(SP==='d')return +k.slice(8)+' '+MN[+k.slice(5,7)-1];if(SP==='m')return MN[+k.slice(5,7)-1]+' '+k.slice(2,4);const a=new Date(k+'T00:00:00Z'),e=new Date(a);e.setUTCDate(e.getUTCDate()+6);const f=x=>x.getUTCDate()+' '+MN[x.getUTCMonth()];return a.getUTCMonth()===e.getUTCMonth()?a.getUTCDate()+'–'+f(e):f(a)+'–<br>'+f(e)}
 function setSP(p){SP=p;render()}
-const KP={all:r=>true,sncu:r=>true,ref:r=>r.ref,soon:r=>r.nd&&dayDiff(r.nd)<=7,wa:r=>r.wa.length>=10,swa:r=>r.swa.length>=10};
-const KL={all:'All newborns registered',sncu:'All SNCU / NBSU records',ref:'Referred out',soon:'Next visit due within 7 days',wa:'Beneficiary WhatsApp captured',swa:'Staff WhatsApp captured'};
+const KP={all:r=>true,sncu:r=>true,ref:r=>r.ref,dis:r=>r.out==='dis',death:r=>r.out==='death',inb:r=>r.bp==='in',outb:r=>r.bp==='out',outg:r=>r.bp==='out'&&r.own==='govt',outp:r=>r.bp==='out'&&r.own==='pvt',deathInb:r=>r.out==='death'&&r.bp==='in',deathOutG:r=>r.out==='death'&&r.bp==='out'&&r.own==='govt',deathOutP:r=>r.out==='death'&&r.bp==='out'&&r.own==='pvt',deathOutO:r=>r.out==='death'&&r.bp==='out'&&!r.own,deathUnk:r=>r.out==='death'&&!r.bp,soon:r=>r.nd&&dayDiff(r.nd)<=7,wa:r=>r.wa.length>=10,swa:r=>r.swa.length>=10};
+const KL={all:'All newborns registered',sncu:'All SNCU / NBSU records',ref:'Referred out',dis:'Discharged',death:'Death',inb:'Inborn (delivered within the facility)',outb:'Outborn (delivered outside the facility)',outg:'Outborn \u2013 delivered in a Govt facility',outp:'Outborn \u2013 delivered in a Private facility',deathInb:'Deaths \u2013 Inborn',deathOutG:'Deaths \u2013 Outborn, Govt facility',deathOutP:'Deaths \u2013 Outborn, Private facility',deathOutO:'Deaths \u2013 Outborn, home / other / not classified',deathUnk:'Deaths \u2013 place of birth not recorded',soon:'Next visit due within 7 days',wa:'Beneficiary WhatsApp captured',swa:'Staff WhatsApp captured'};
+const outChip=r=>r.ref?'<span class="chip c-yes">Referred</span>':r.out==='death'?'<span class="chip" style="background:#c0392b;color:#fff">Death</span>':r.out==='dis'?'<span class="chip c-up">Discharged</span>':'\u2014';
+const delChip=r=>r.bp?'<b>'+(r.bp==='in'?'Inborn':'Outborn'+(r.own==='govt'?' \u00b7 Govt':r.own==='pvt'?' \u00b7 Private':''))+'</b>'+(r.pod?' \u00b7 '+esc(r.pod):''):(r.pod?esc(r.pod):'\u2014');
 function kpi(key,cls,val,label){return '<div class="card kpi '+cls+'" role="button" tabindex="0" style="cursor:pointer" title="Click to see records" onclick="setKpi(\''+key+'\')" onkeydown="if(event.key===\'Enter\')setKpi(\''+key+'\')"><b>'+val+'</b><span>'+label+' ›</span></div>'}
 function setKpi(k){KF=k;document.querySelector('.tab[data-v=rec]').click();render()}
 const ageStr=d=>{if(!d)return '—';const t=-dayDiff(d);if(t<0)return '—';const m=Math.floor(t/30.4375);return m?m+' m '+Math.round(t-m*30.4375)+' d':t+' d'};
@@ -299,6 +335,10 @@ const waLink=n=>n.length>=10?'<a href="https://wa.me/91'+n.slice(-10)+'" target=
 function render(){roleUI();
   const n=F.length,ref=F.filter(r=>r.ref).length,soon=F.filter(r=>r.nd&&dayDiff(r.nd)<=7).length,wa=F.filter(r=>r.wa.length>=10).length,swa=F.filter(r=>r.swa.length>=10).length,V=KF?F.filter(KP[KF]):F;
   const pct=(a)=>n?Math.round(a/n*100)+'%':'0%';
+  const dis=F.filter(KP.dis).length,dth=F.filter(KP.death).length,inb=F.filter(KP.inb).length,outb=F.filter(KP.outb).length,outg=F.filter(KP.outg).length,outp=F.filter(KP.outp).length,pv=a=>a+' <small style="font-size:15px">('+pct(a)+')</small>';
+  const dpc=a=>dth?Math.round(a/dth*100)+'%':'0%',dc=k=>F.filter(KP[k]).length;
+  const dsub=(k,l)=>{const v=dc(k);return (k==='deathUnk'&&!v)?'':'<div role="button" tabindex="0" style="cursor:pointer;padding:6px 8px;border-radius:8px" title="Click to see records" onclick="setKpi(\''+k+'\')" onkeydown="if(event.key===\'Enter\')setKpi(\''+k+'\')"><b style="font-size:24px">'+v+' <small style="font-size:12px">('+dpc(v)+')</small></b><span style="display:block;font-size:12px;color:var(--soft)">'+l+' \u203a</span></div>'};
+  const dthCard='<div class="card kpi r" style="grid-column:1/-1"><div style="font-size:12px;font-weight:700;color:var(--soft);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px">Deaths by place of birth \u00b7 '+dth+' total</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">'+dsub('deathInb','Inborn')+dsub('deathOutG','Outborn \u2013 Govt')+dsub('deathOutP','Outborn \u2013 Private')+dsub('deathOutO','Outborn \u2013 Home / other')+dsub('deathUnk','Place not recorded')+'</div></div>';
   const days=count(F.map(r=>r.subDay)).sort((a,b)=>a[0]<b[0]?-1:1).slice(-10),dm=Math.max(1,...days.map(x=>x[1]));
   const dg=count(F.flatMap(r=>r.diag)).slice(0,10),dgm=Math.max(1,...dg.map(x=>x[1]));
   const dcols=dg.length?'<div class="card" style="grid-column:1/-1"><h3>Diagnosis</h3><div style="overflow-x:auto"><div class="cols" style="height:215px;min-width:'+dg.length*80+'px">'+dg.map(([k,v])=>'<div title="'+esc(k)+'"><span class="fv">'+v+'</span><i style="height:'+v/dgm*130+'px"></i><span style="display:block;font-size:10.5px;line-height:1.2;word-break:break-word">'+esc(k)+'</span></div>').join('')+'</div></div></div>':'<div class="card"><h3>Diagnosis</h3><p class="note">No data</p></div>';
@@ -309,7 +349,7 @@ function render(){roleUI();
   const ab=[['<8 days',0],['8–28 days',0],['>28 days',0]];
   F.forEach(r=>{if(!r.dod)return;const t=-dayDiff(r.dod);if(t<0)return;ab[t<8?0:t<=28?1:2][1]++});
   const am=Math.max(1,...ab.map(x=>x[1]));
-  $('ov').innerHTML='<div class="kpis">'+kpi('all','',n,'Newborns registered')+kpi('sncu','g',new Set(F.map(r=>r.sncu)).size,'SNCU / NBSU reporting')+kpi('ref','o',ref+' <small style="font-size:15px">('+pct(ref)+')</small>','Referred out')+kpi('soon','w',soon,'Next visit due within 7 days')+kpi('wa','',pct(wa),'Beneficiary WhatsApp captured')+kpi('swa','g',pct(swa),'Staff WhatsApp captured')+'</div>'+
+  $('ov').innerHTML='<div class="kpis">'+kpi('all','',n,'Newborns registered')+kpi('sncu','g',new Set(F.map(r=>r.sncu)).size,'SNCU / NBSU reporting')+kpi('dis','g',pv(dis),'Discharged')+kpi('ref','o',pv(ref),'Referred out')+kpi('death','r',pv(dth),'Death')+kpi('inb','g',pv(inb),'Inborn (delivered within the facility)')+kpi('outb','w',pv(outb),'Outborn (delivered outside the facility)')+kpi('outg','w',pv(outg),'Outborn \u2013 Govt facility')+kpi('outp','w',pv(outp),'Outborn \u2013 Private facility')+kpi('soon','w',soon,'Next visit due within 7 days')+kpi('wa','',pct(wa),'Beneficiary WhatsApp captured')+kpi('swa','g',pct(swa),'Staff WhatsApp captured')+dthCard+'</div>'+
    '<div class="grid">'+bars('Registrations by SNCU / NBSU',count(F.map(r=>r.sncu)))+bars('Registrations by district',count(F.map(r=>r.district)))+bars('Registrations by block',count(F.map(r=>r.district+' · '+r.block)))+
    pcols+'<div class="card" style="grid-column:1/-1"><h3>Newborns by age (from date of birth)</h3><div class="cols">'+ab.map(([k,v])=>'<div><span class="fv">'+v+(n?' <small>('+Math.round(v/n*100)+'%)</small>':'')+'</span><i style="height:'+v/am*110+'px"></i>'+k+'</div>').join('')+'</div></div>'+dcols+ocols+'</div>';
 
@@ -318,8 +358,8 @@ function render(){roleUI();
   $('fu').innerHTML='<p class="note">Next visit is worked out from the schedule dates in the export, counted from today. Whether a visit was actually done is not in the export, so overdue visits cannot be shown.</p>'+
    (fu.length?'<div class="tw"><table><thead><tr><th>Due</th><th>Mother</th><th>Village</th><th>SNCU / NBSU</th><th>Next home visit</th><th>Next hospital visit</th><th>WhatsApp</th></tr></thead><tbody>'+
    fu.map(r=>'<tr onclick="openRec('+ALL.indexOf(r)+')"><td>'+chip(r)+'</td><td>'+esc(r.mother)+'</td><td>'+esc(r.village)+'</td><td>'+esc(r.sncu)+'</td><td>'+fd(r.home)+'</td><td>'+fd(r.hosp)+'</td><td>'+(r.wa.length>=10?'<a href="https://wa.me/91'+r.wa.slice(-10)+'" target="_blank" rel="noopener" onclick="event.stopPropagation()">'+r.wa.slice(-10)+'</a>':'—')+'</td></tr>').join('')+'</tbody></table></div>':'<div class="card empty">No upcoming visits for these filters.</div>');
-  $('rec').innerHTML=(KF?'<p class="note"><b>Showing: '+KL[KF]+' ('+V.length+')</b> · <a href="#" onclick="KF=null;render();return false">Clear</a></p>':'')+'<div class="tw"><table><thead><tr><th>Mother</th><th>District</th><th>Block</th><th>Village</th><th>SNCU / NBSU</th><th>Diagnosis</th><th>Born</th><th>Age</th><th>Admitted</th><th>Discharged</th><th>Beneficiary WhatsApp</th><th>Staff WhatsApp</th><th>Referral</th><th>Actions</th></tr></thead><tbody>'+
-   V.map(r=>'<tr onclick="openRec('+ALL.indexOf(r)+')"><td>'+esc(r.mother)+'</td><td>'+esc(r.district)+'</td><td>'+esc(r.block)+'</td><td>'+esc(r.village)+'</td><td>'+esc(r.sncu)+'</td><td>'+esc(r.diag.map(d=>/^other/i.test(d)&&r.diagOth?d+' ('+r.diagOth+')':d).join(', ')||'—')+'</td><td>'+fd(r.dod)+'</td><td>'+ageStr(r.dod)+'</td><td>'+fd(r.adm)+'</td><td>'+fd(r.dis)+'</td><td>'+waLink(r.wa)+'</td><td>'+waLink(r.swa)+'</td><td>'+(r.ref?'<span class="chip c-yes">Referred'+(r.refTo?' · '+esc(r.refTo):'')+'</span>':'No')+'</td><td><button class="btn sec" style="padding:4px 12px" onclick="event.stopPropagation();openRec('+ALL.indexOf(r)+')">View</button>'+(canEdit()?' <button class="btn" style="padding:4px 12px" onclick="event.stopPropagation();openRec('+ALL.indexOf(r)+',true)">✏ Edit</button>':'')+'</td></tr>').join('')+'</tbody></table></div>';
+  $('rec').innerHTML=(KF?'<p class="note"><b>Showing: '+KL[KF]+' ('+V.length+')</b> · <a href="#" onclick="KF=null;render();return false">Clear</a></p>':'')+'<div class="tw"><table><thead><tr><th>Mother</th><th>District</th><th>Block</th><th>Village</th><th>SNCU / NBSU</th><th>Diagnosis</th><th>Born</th><th>Age</th><th>Admitted</th><th>Discharged</th><th>Outcome</th><th>Place of delivery</th><th>Beneficiary WhatsApp</th><th>Staff WhatsApp</th><th>Referral</th><th>Actions</th></tr></thead><tbody>'+
+   V.map(r=>'<tr onclick="openRec('+ALL.indexOf(r)+')"><td>'+esc(r.mother)+'</td><td>'+esc(r.district)+'</td><td>'+esc(r.block)+'</td><td>'+esc(r.village)+'</td><td>'+esc(r.sncu)+'</td><td>'+esc(r.diag.map(d=>/^other/i.test(d)&&r.diagOth?d+' ('+r.diagOth+')':d).join(', ')||'—')+'</td><td>'+fd(r.dod)+'</td><td>'+ageStr(r.dod)+'</td><td>'+fd(r.adm)+'</td><td>'+fd(r.dis)+'</td><td>'+outChip(r)+'</td><td>'+delChip(r)+'</td><td>'+waLink(r.wa)+'</td><td>'+waLink(r.swa)+'</td><td>'+(r.ref?'<span class="chip c-yes">Referred'+(r.refTo?' · '+esc(r.refTo):'')+'</span>':'No')+'</td><td><button class="btn sec" style="padding:4px 12px" onclick="event.stopPropagation();openRec('+ALL.indexOf(r)+')">View</button>'+(canEdit()?' <button class="btn" style="padding:4px 12px" onclick="event.stopPropagation();openRec('+ALL.indexOf(r)+',true)">✏ Edit</button>':'')+'</td></tr>').join('')+'</tbody></table></div>';
 }
 function openRec(i,ed){
   const r=ALL[i];EI=i;$('mt').textContent=r.mother+' · '+r.sncu;
