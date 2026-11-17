@@ -1006,6 +1006,12 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{$('
 .pwwrap{position:relative}.pwwrap input{padding-right:44px}
 .pweye{position:absolute;right:4px;top:4px;width:36px;height:34px;padding:0;margin:0;background:none !important;border:0;color:#6b3a52;cursor:pointer;display:flex;align-items:center;justify-content:center;border-radius:8px}
 .pweye:focus-visible{outline:3px solid var(--accent)}
+/* Mobile: Online/Offline pill moves to the top-left corner (sign-out icon stays top-right) */
+@media(max-width:700px){
+ .netfloat{right:auto;left:calc(12px + env(safe-area-inset-left,0px))}
+ .lg .netpill{right:auto;left:12px}
+ .hact{padding-right:48px;padding-left:104px;min-height:34px}
+}
 </style>
 <script>
 /* Online (green) / Offline (amber) pill, top-right, visible after login (top-level page only) */
