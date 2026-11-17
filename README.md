@@ -15,7 +15,11 @@ Cover / login page: top-right **Online** (green dot) / **Offline** (yellow dot) 
 3. **Installing** – **Update** shows a spinning ring, *Installing update…*, then the app restarts on its own.
 4. **After the restart** – *✔ Updated to the latest version* appears briefly.
 
-`sw.js` is cache-first (cache `sncu-v8`): a new `index.html` is not picked up silently. The page compares the `ETag` of `index.html` on the host with its cached copy, downloads the new file into a staging cache, and swaps it in only when **Update** is tapped. To release: replace `index.html` and commit (no version bump needed). Records loaded from a file are held in memory, so after an update load the file again (cloud users just sign in / Sync now).
+`sw.js` is cache-first (cache `sncu-v13`): a new `index.html` is not picked up silently. The page compares the `ETag` of `index.html` on the host with its cached copy, downloads the new file into a staging cache, and swaps it in only when **Update** is tapped. To release: replace `index.html` and commit (no version bump needed). Records loaded from a file are held in memory, so after an update load the file again (cloud users just sign in / Sync now).
+
+## Pull from Kobo (admin)
+
+The State (admin) login shows a **⟳ Pull from Kobo** button next to **Sync now**. It asks the Apps Script (`kobosync`) to fetch new Kobo submissions into the cloud sheet, then reloads the data. Needs `KOBO_TOKEN` in Apps Script properties and a deployed new version of `Code.gs`.
 
 ## Block logins
 

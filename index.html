@@ -165,12 +165,12 @@ img,svg,canvas,video{max-width:100%}
 <header>
  <div class="top"><div><h1>🍼 SNCU Tickler Dashboard</h1>
  <p>NHM Odisha · Newborn registrations, diagnoses, referrals and follow-up visit schedule from the KoboToolbox SNCU/NBSU tickler export. Data stays in your browser.</p></div>
- <div class="hact" id="hact"><button class="btn" id="so" onclick="cloudLogout()" style="display:none" aria-label="Sign out" title="Sign out"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button></div></div>
+ <div class="hact" id="hact"><span id="who" class="who" aria-live="polite"></span><button class="btn" id="so" onclick="cloudLogout()" style="display:none" aria-label="Sign out" title="Sign out"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button></div></div>
  <div class="loadbar">
   <button class="btn" onclick="$('file').click()">📦 Load CSV / XLSX / ZIP</button>
   <input type="file" id="file" accept=".csv,.xlsx,.xls,.zip" hidden onchange="load(event)">
   <span id="status">No file loaded yet.</span>
-  <span id="cg"><b id="cu"></b><button class="btn" onclick="cloudPull()">☁ Sync now</button><span id="cs"></span></span>
+  <span id="cg"><b id="cu"></b><button class="btn" onclick="cloudPull()">☁ Sync now</button><button class="btn" id="kb" onclick="koboPull()" style="display:none">⟳ Pull from Kobo</button><span id="cs"></span></span>
  </div>
  <div class="tabs" id="tabs" style="display:none">
   <button class="tab on" data-v="ov">Overview</button><button class="tab" data-v="fu">Follow-up</button><button class="tab" data-v="rec">Records</button><button class="tab" data-v="new" id="tabNew" style="display:none">➕ New Entry</button>
@@ -415,7 +415,7 @@ async function cloudLogin(){
     try{(function(k,v){try{localStorage.setItem(k,v)}catch(_){sessionStorage.setItem(k,v)}})('sncu_cloud',JSON.stringify(CLOUD))}catch(e){}
     $('lp').value='';afterLogin()}catch(e){$('lerr').textContent=e.message}
   $('lb').disabled=false;$('lb').textContent='Sign in'}
-function afterLogin(){roleUI();
+function afterLogin(){roleUI();$('kb').style.display=CLOUD.user.role==='admin'?'':'none';
   $('lg').classList.remove('on');$('cg').style.display='flex';$('so').style.display='inline-block';
   $('cu').textContent='👤 '+(CLOUD.user.role==='admin'?'State · all districts':CLOUD.user.role==='facility'?CLOUD.user.name:CLOUD.block?bkLabel()+', '+cap(CLOUD.user.district)+' district':cap(CLOUD.user.district)+' district');cloudPull()}
 function cloudLogout(reason){
@@ -427,6 +427,14 @@ async function cloudPull(){
   try{while(off!==null&&off!==undefined){cs('Downloading… '+all.length);const o=await cloudCall('pull',{offset:off,limit:300});o.rows.forEach(r=>all.push(r));off=o.next}
     if(all.length)show(all,'☁ '+all.length+' records from the cloud');else{ALL=[];$('status').className='';$('status').textContent='No cloud data yet. Load a Kobo export to upload it.'}
     cs('☁ synced '+new Date().toLocaleTimeString(),'ok')}catch(e){if(e.message!=='Session expired')cs(e.message,'err')}}
+async function koboPull(full){
+  if(!CLOUD||CLOUD.user.role!=='admin')return;
+  const b=$('kb');b.disabled=true;
+  try{let added=0,upd=0,more=true,n=0;
+    while(more&&n++<20){cs('Pulling from Kobo… '+added+' new');const o=await cloudCall('kobosync',{full:!!full&&n===1});added+=o.added||0;upd+=o.updated||0;more=!!o.more}
+    await cloudPull();cs('✔ Kobo: '+added+' new, '+upd+' updated · '+new Date().toLocaleTimeString(),'ok')}
+  catch(e){if(e.message!=='Session expired')cs(e.message,'err')}
+  b.disabled=false}
 async function cloudPush(rows,name){
   const U=CLOUD.user,mine=(U.role==='admin'?rows:rows.filter(r=>U.role==='facility'?facMatch(r,U.name,U.facility):r.district===U.district)).filter(bkRow),skip=rows.length-mine.length;
   if(!mine.length){$('status').className='err';$('status').textContent='No '+(U.role==='facility'?U.name:cap(U.district))+' records in '+name+'. Nothing uploaded.';return}
@@ -827,7 +835,7 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{$('
      The new index.html is downloaded into a staging cache; it only replaces the running copy when the user taps Update. */
   if('serviceWorker' in navigator && /^https?:/.test(location.protocol) && window.caches){
     (function(){
-      var CACHE='sncu-v8', STAGE='sncu-stage';
+      var CACHE='sncu-v13', STAGE='sncu-stage';
       var IDX=new URL('index.html',location.href).href, VER=new URL('__ver.json',location.href).href;
       var SMALL=['manifest.webmanifest','icon-192.png','icon-512.png','maskable-512.png','apple-touch-icon.png'];
       var EVERY=30*60*1000, MIN_GAP=20000;
@@ -1013,6 +1021,22 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{$('
  .hact{padding-right:48px;padding-left:104px;min-height:34px}
 }
 </style>
+<style id="who-style">
+/* Logged-in district / block / facility name, shown just before the sign-out icon */
+.who{flex:0 1 auto;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px;font-weight:600;color:#fff;background:rgba(40,8,26,.45);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:6px 12px}
+.who:empty{display:none}
+#cu{display:none}
+@media print{.who{display:none}}
+</style>
+<script>
+(function(){
+  var cu=document.getElementById('cu'),who=document.getElementById('who');
+  if(!cu||!who||!window.MutationObserver) return;
+  function sync(){var t=(cu.textContent||'').trim();who.textContent=t;who.title=t}
+  new MutationObserver(sync).observe(cu,{childList:true,characterData:true,subtree:true});
+  sync();
+})();
+</script>
 <script>
 /* Online (green) / Offline (amber) pill, top-right, visible after login (top-level page only) */
 (function(){
