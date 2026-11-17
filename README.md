@@ -16,3 +16,13 @@ Cover / login page: top-right **Online** (green dot) / **Offline** (yellow dot) 
 4. **After the restart** – *✔ Updated to the latest version* appears briefly.
 
 `sw.js` is cache-first (cache `sncu-v8`): a new `index.html` is not picked up silently. The page compares the `ETag` of `index.html` on the host with its cached copy, downloads the new file into a staging cache, and swaps it in only when **Update** is tapped. To release: replace `index.html` and commit (no version bump needed). Records loaded from a file are held in memory, so after an update load the file again (cloud users just sign in / Sync now).
+
+## Block logins
+
+Login screen → **Login as: Block** → choose District, Block, enter the block passcode.
+
+* The block passcode unlocks (AES-GCM, PBKDF2) that district's cloud password stored encrypted inside `index.html`; the app then signs in to the cloud as the district and shows **only that block's records**. No plain passcodes are stored in the file.
+* "Other & Urban Facilities" shows records of the district whose block is not one of its listed blocks.
+* Block names are matched phonetically (Anugul/Angul, Talacher/Talcher …). If a block shows no records, check how its name is spelt in the Kobo data.
+* To change a passcode: regenerate the encrypted `BLOCKS` table (district password + new block passcode) and republish.
+* Limitation: the block restriction is applied in the app. The cloud session itself is a district session, so it is not enforced by the server.
